@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Power Desk{% endblock %} · Power Desk</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">⚡ Power Desk</a>
+    {% if app_env != "prod" %}<span class="env-badge" data-testid="env-badge">{{ app_env }}</span>{% endif %}
+    {% if user %}
+    <nav class="nav" aria-label="Main">
+      <a href="/" data-testid="nav-dashboard">Dashboard</a>
+      {% if user.can_trade %}<a href="/trades/new" data-testid="nav-trade">Trade ticket</a>{% endif %}
+      <a href="/blotter" data-testid="nav-blotter">Blotter</a>
+      <a href="/positions" data-testid="nav-positions">Positions</a>
+    </nav>
+    <div class="who">
+      <span data-testid="current-user">{{ user.display_name }}</span>
+      <span class="role role-{{ user.role }}" data-testid="current-role">{{ user.role }}</span>
+      <a href="/logout" data-testid="logout">Sign out</a>
+    </div>
+    {% endif %}
+  </header>
+  <main class="container">
+    {% if flash %}<div class="flash" role="status" data-testid="flash">{{ flash }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Business date {{ today.isoformat() }}</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

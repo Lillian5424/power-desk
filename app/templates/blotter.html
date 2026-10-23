@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Blotter{% endblock %}
+{% block content %}
+<h1>Trade blotter</h1>
+<form method="get" action="/blotter" class="filter">
+  <label for="hub-filter">Filter by hub</label>
+  <select id="hub-filter" name="hub" onchange="this.form.submit()">
+    <option value="">All hubs</option>
+    {% for h in hubs %}<option value="{{ h }}" {% if selected_hub == h %}selected{% endif %}>{{ h }}</option>{% endfor %}
+  </select>
+</form>
+<section class="card">
+  {% if trades %}
+  <table data-testid="blotter-table">
+    <thead><tr>
+      <th>#</th><th>Trader</th><th>Side</th><th>Hub</th><th>Product</th>
+      <th class="num">MW</th><th class="num">Price</th><th>Delivery</th><th class="num">Notional</th>
+    </tr></thead>
+    <tbody>
+    {% for t in trades %}
+      <tr data-testid="trade-row" data-trade-id="{{ t.id }}">
+        <td data-col="id">{{ t.id }}</td>
+        <td data-col="trader">{{ t.trader }}</td>
+        <td data-col="side" class="side-{{ t.side|lower }}">{{ t.side }}</td>
+        <td data-col="hub">{{ t.hub }}</td>
+        <td data-col="product">{{ t.product }}</td>
+        <td data-col="quantity_mw" class="num">{{ t.quantity_mw }}</td>
+        <td data-col="price" class="num">{{ "%.2f"|format(t.price) }}</td>
+        <td data-col="delivery_date">{{ t.delivery_date }}</td>
+        <td data-col="notional" class="num">{{ t.notional|usd }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty" data-testid="blotter-empty">No trades yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

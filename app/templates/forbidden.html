@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not allowed{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1 data-testid="forbidden">Not allowed</h1>
+  <p>Your role ({{ user.role }}) cannot book trades.</p>
+  <p><a href="/">Back to dashboard</a></p>
+</section>
+{% endblock %}

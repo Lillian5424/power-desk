@@ -1,0 +1,44 @@
+# Runs every night: breadth that would be too slow for every PR.
+# Every E2E test on all three browser engines. A failure here usually means a
+# browser-specific bug or a flaky test, and gets triaged the next morning.
+name: Nightly cross-browser
+
+on:
+  schedule:
+    - cron: "17 8 * * *" # 08:17 UTC = 3:17 am Central (odd minute avoids the top-of-hour rush)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-cross-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false # one browser failing should not hide results from the others
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          browsers: ${{ matrix.browser }}
+      - name: E2E on ${{ matrix.browser }}
+        run: >
+          pytest -m e2e -n auto --browser ${{ matrix.browser }}
+          --tracing retain-on-failure --screenshot only-on-failure --video retain-on-failure
+          --output test-results
+          --junitxml=reports/${{ matrix.browser }}.xml
+          --html=reports/${{ matrix.browser }}.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-report-${{ matrix.browser }}
+          path: reports/
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nightly-traces-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 14

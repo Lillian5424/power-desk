@@ -1,0 +1,68 @@
+# Runs after every merge to main: the full regression suite. Slower than PR
+# checks, so tests run in parallel (pytest-xdist; each worker gets its own app
+# server and database) and the suite is split across two machines (shards).
+name: Main regression
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow a manual run from the Actions tab
+
+concurrency:
+  group: main-regression
+  cancel-in-progress: false # let every merge finish so you can tell which one broke main
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pytest -m "unit or api" -n auto --junitxml=reports/unit-api.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-api-junit
+          path: reports/
+
+  e2e-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [e2e-ticket, e2e-other]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          browsers: chromium
+      - name: Select tests for this shard
+        id: select
+        run: |
+          if [ "${{ matrix.shard }}" = "e2e-ticket" ]; then
+            echo "paths=tests/e2e/test_trade_ticket.py" >> "$GITHUB_OUTPUT"
+          else
+            echo "paths=tests/e2e --deselect tests/e2e/test_trade_ticket.py" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Full E2E regression (${{ matrix.shard }})
+        run: >
+          pytest ${{ steps.select.outputs.paths }} -n auto --browser chromium
+          --tracing retain-on-failure --screenshot only-on-failure
+          --output test-results
+          --html=reports/${{ matrix.shard }}.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ matrix.shard }}
+          path: reports/
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: traces-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 14

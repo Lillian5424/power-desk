@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Positions{% endblock %}
+{% block content %}
+<h1>Positions &amp; P&amp;L</h1>
+<section class="card">
+  {% if positions.rows %}
+  <table data-testid="positions-table">
+    <thead><tr>
+      <th>Hub</th><th class="num">Net MW</th><th class="num">Net MWh</th>
+      <th class="num">Avg price</th><th class="num">Mark</th><th class="num">P&amp;L</th>
+    </tr></thead>
+    <tbody>
+    {% for r in positions.rows %}
+      <tr data-testid="position-{{ r.hub }}">
+        <td data-col="hub">{{ r.hub }}</td>
+        <td data-col="net_mw" class="num">{{ r.net_mw }}</td>
+        <td data-col="net_mwh" class="num">{{ "{:,}".format(r.net_mwh) }}</td>
+        <td data-col="avg_price" class="num">{{ "%.2f"|format(r.avg_price) if r.avg_price is not none else "—" }}</td>
+        <td data-col="mark" class="num">{{ "%.2f"|format(r.mark) }}</td>
+        <td data-col="pnl" class="num {{ 'pos' if r.pnl > 0 else 'neg' if r.pnl < 0 else '' }}">{{ r.pnl|usd }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr>
+      <td colspan="5">Total</td>
+      <td class="num" data-testid="positions-total-pnl">{{ positions.total_pnl|usd }}</td>
+    </tr></tfoot>
+  </table>
+  {% else %}
+  <p class="empty" data-testid="positions-empty">No open positions.</p>
+  {% endif %}
+</section>
+{% endblock %}

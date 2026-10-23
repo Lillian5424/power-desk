@@ -1,0 +1,72 @@
+# Runs on every pull request. Goal: fast feedback (target < 10 min) so it can
+# be a required check that blocks merging. Cheap jobs run first and in parallel;
+# the browser job only runs the critical-path "smoke" subset.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+# A new push to the same PR cancels the run that is now out of date.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: ruff check .
+      - run: ruff format --check .
+
+  unit-and-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # API tests use Playwright's HTTP client but need no browser binaries.
+      - uses: ./.github/actions/setup
+      - name: Unit tests
+        run: pytest -m unit --junitxml=reports/unit.xml
+      - name: API tests
+        run: pytest -m api --junitxml=reports/api.xml --html=reports/api.html --self-contained-html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-api-reports
+          path: reports/
+
+  e2e-smoke:
+    needs: [lint, unit-and-api] # don't spend browser minutes if the basics fail
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          browsers: chromium
+      - name: E2E smoke tests
+        run: >
+          pytest -m "e2e and smoke" --browser chromium
+          --tracing retain-on-failure --screenshot only-on-failure --video retain-on-failure
+          --output test-results
+          --html=reports/e2e-smoke.html --self-contained-html
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-smoke-report
+          path: reports/
+      - name: Upload traces, screenshots and videos of failed tests
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-smoke-traces
+          path: test-results/
+          retention-days: 7
